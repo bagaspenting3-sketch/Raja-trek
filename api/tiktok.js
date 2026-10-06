@@ -1,741 +1,353 @@
-"use strict";
+export default async function handler(req, res) {
+  // ==========================================
+  // METHOD
+  // ==========================================
 
-console.log("================================");
-console.log("TikTok Stats Finder DEBUG");
-console.log("Script berhasil dimuat");
-console.log("================================");
-
-
-// ==========================================
-// AMBIL ELEMENT HTML
-// ==========================================
-
-const searchForm =
-  document.getElementById("searchForm");
-
-const videoInput =
-  document.getElementById("videoUrl");
-
-const checkButton =
-  document.getElementById("checkButton");
-
-const errorBox =
-  document.getElementById("error");
-
-const loadingBox =
-  document.getElementById("loading");
-
-const resultBox =
-  document.getElementById("result");
-
-const videoIdElement =
-  document.getElementById("videoId");
-
-const openTikTok =
-  document.getElementById("openTikTok");
-
-const descriptionElement =
-  document.getElementById("description");
-
-const viewsElement =
-  document.getElementById("views");
-
-const likesElement =
-  document.getElementById("likes");
-
-const commentsElement =
-  document.getElementById("comments");
-
-const sharesElement =
-  document.getElementById("shares");
-
-const savesElement =
-  document.getElementById("saves");
-
-const createdAtElement =
-  document.getElementById("createdAt");
-
-const fetchedAtElement =
-  document.getElementById("fetchedAt");
-
-
-// ==========================================
-// CEK ELEMENT
-// ==========================================
-
-console.log("searchForm:", searchForm);
-console.log("videoInput:", videoInput);
-console.log("checkButton:", checkButton);
-console.log("errorBox:", errorBox);
-console.log("loadingBox:", loadingBox);
-console.log("resultBox:", resultBox);
-
-
-// ==========================================
-// HELPER
-// ==========================================
-
-function showError(message) {
-
-  console.error(
-    "[ERROR]",
-    message
-  );
-
-  if (errorBox) {
-
-    errorBox.textContent =
-      message;
-
-    errorBox.classList.remove(
-      "hidden"
-    );
+  if (req.method !== "GET") {
+    return res.status(405).json({
+      success: false,
+      error: "Method not allowed"
+    });
   }
-}
 
+  // ==========================================
+  // API KEY
+  // ==========================================
 
-function hideError() {
+  const apiKey =
+    process.env.QUANTICDATA_API_KEY;
 
-  if (errorBox) {
-
-    errorBox.textContent =
-      "";
-
-    errorBox.classList.add(
-      "hidden"
-    );
+  if (!apiKey) {
+    return res.status(500).json({
+      success: false,
+      error:
+        "QUANTICDATA_API_KEY belum diatur di Vercel."
+    });
   }
-}
 
+  // ==========================================
+  // AMBIL URL
+  // ==========================================
 
-function showLoading() {
+  const inputUrl =
+    String(req.query.url || "").trim();
 
-  if (loadingBox) {
-
-    loadingBox.classList.remove(
-      "hidden"
-    );
+  if (!inputUrl) {
+    return res.status(400).json({
+      success: false,
+      error:
+        "Link video TikTok wajib diisi."
+    });
   }
-}
 
-
-function hideLoading() {
-
-  if (loadingBox) {
-
-    loadingBox.classList.add(
-      "hidden"
-    );
-  }
-}
-
-
-// ==========================================
-// API REQUEST
-// ==========================================
-
-async function getTikTokStats(videoUrl) {
-
-  console.log(
-    "================================"
-  );
-
-  console.log(
-    "STEP 1 - URL INPUT"
-  );
-
-  console.log(
-    videoUrl
-  );
-
-
-  // ========================================
+  // ==========================================
   // VALIDASI URL
-  // ========================================
+  // ==========================================
 
   let parsedUrl;
 
   try {
-
     parsedUrl =
-      new URL(videoUrl);
-
-  } catch (error) {
-
-    console.error(
-      "URL INVALID:",
-      error
-    );
-
-    throw new Error(
-      "Link TikTok tidak valid."
-    );
+      new URL(inputUrl);
+  } catch {
+    return res.status(400).json({
+      success: false,
+      error:
+        "Link TikTok tidak valid."
+    });
   }
 
+  const hostname =
+    parsedUrl.hostname.toLowerCase();
 
-  console.log(
-    "STEP 2 - URL VALID"
-  );
+  const isTikTok =
+    hostname === "tiktok.com" ||
+    hostname.endsWith(".tiktok.com");
 
-  console.log({
-    protocol:
-      parsedUrl.protocol,
+  if (!isTikTok) {
+    return res.status(400).json({
+      success: false,
+      error:
+        "Masukkan link TikTok yang valid."
+    });
+  }
 
-    hostname:
-      parsedUrl.hostname,
+  // ==========================================
+  // URL FINAL
+  // ==========================================
 
-    pathname:
-      parsedUrl.pathname
-  });
+  let finalUrl = inputUrl;
 
+  // ==========================================
+  // HANDLE SHORT URL
+  // ==========================================
 
-  // ========================================
-  // BUAT URL API
-  // ========================================
+  if (
+    hostname === "vt.tiktok.com" ||
+    hostname === "vm.tiktok.com"
+  ) {
+    try {
+      console.log(
+        "Short URL:",
+        inputUrl
+      );
 
-  const apiUrl =
-    `/api/tiktok?url=${encodeURIComponent(
-      videoUrl
-    )}`;
+      const redirectResponse =
+        await fetch(inputUrl, {
+          method: "GET",
+          redirect: "follow",
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/131.0.0.0 Mobile Safari/537.36",
+            "Accept":
+              "text/html,application/xhtml+xml"
+          }
+        });
 
+      finalUrl =
+        redirectResponse.url ||
+        inputUrl;
 
-  console.log(
-    "STEP 3 - API URL"
-  );
+      console.log(
+        "Redirect URL:",
+        finalUrl
+      );
 
-  console.log(
-    apiUrl
-  );
+    } catch (error) {
+      console.error(
+        "Short URL error:",
+        error
+      );
 
+      return res.status(502).json({
+        success: false,
+        error:
+          "Gagal mengikuti link pendek TikTok.",
+        details:
+          error.message
+      });
+    }
+  }
 
-  // ========================================
-  // FETCH API
-  // ========================================
+  // ==========================================
+  // VALIDASI URL HASIL REDIRECT
+  // ==========================================
 
-  let response;
+  let finalParsed;
 
   try {
+    finalParsed =
+      new URL(finalUrl);
+  } catch {
+    return res.status(400).json({
+      success: false,
+      error:
+        "URL TikTok hasil redirect tidak valid."
+    });
+  }
 
-    console.log(
-      "STEP 4 - REQUEST KE VERCEL"
-    );
+  const finalHostname =
+    finalParsed.hostname.toLowerCase();
 
-    response =
+  const finalIsTikTok =
+    finalHostname === "tiktok.com" ||
+    finalHostname.endsWith(".tiktok.com");
+
+  if (!finalIsTikTok) {
+    return res.status(400).json({
+      success: false,
+      error:
+        "Link tidak mengarah ke TikTok.",
+      final_url:
+        finalUrl
+    });
+  }
+
+  console.log(
+    "URL yang dikirim ke QuanticData:",
+    finalUrl
+  );
+
+  // ==========================================
+  // QUANTICDATA
+  // ==========================================
+
+  try {
+    const response =
       await fetch(
-        apiUrl,
+        "https://api.quanticdata.io/v1/scraper/collectors/tiktok_video/run",
         {
-          method: "GET",
+          method: "POST",
 
           headers: {
-            Accept:
+            "Authorization":
+              `Bearer ${apiKey}`,
+
+            "Content-Type":
+              "application/json",
+
+            "Accept":
               "application/json"
-          }
+          },
+
+          body: JSON.stringify({
+            videos: [
+              finalUrl
+            ],
+
+            max_results: 1
+          })
         }
       );
 
-  } catch (error) {
+    // ========================================
+    // BACA SEBAGAI TEXT DULU
+    // ========================================
 
-    console.error(
-      "FETCH ERROR:",
-      error
-    );
-
-    throw new Error(
-      "Tidak dapat terhubung ke server Vercel."
-    );
-  }
-
-
-  // ========================================
-  // STATUS
-  // ========================================
-
-  console.log(
-    "STEP 5 - RESPONSE"
-  );
-
-  console.log({
-    status:
-      response.status,
-
-    statusText:
-      response.statusText,
-
-    ok:
-      response.ok,
-
-    url:
-      response.url,
-
-    redirected:
-      response.redirected
-  });
-
-
-  // ========================================
-  // HEADERS
-  // ========================================
-
-  const headers = {};
-
-  response.headers.forEach(
-    (value, key) => {
-
-      headers[key] =
-        value;
-
-    }
-  );
-
-  console.log(
-    "STEP 6 - RESPONSE HEADERS"
-  );
-
-  console.log(
-    headers
-  );
-
-
-  // ========================================
-  // BACA TEXT
-  // ========================================
-
-  let raw;
-
-  try {
-
-    raw =
+    const raw =
       await response.text();
 
-  } catch (error) {
-
-    console.error(
-      "READ RESPONSE ERROR:",
-      error
+    console.log(
+      "QuanticData status:",
+      response.status
     );
 
-    throw new Error(
-      "Tidak dapat membaca response server."
-    );
-  }
-
-
-  console.log(
-    "STEP 7 - RAW RESPONSE"
-  );
-
-  console.log(
-    raw
-  );
-
-
-  // ========================================
-  // RESPONSE KOSONG
-  // ========================================
-
-  if (!raw) {
-
-    throw new Error(
-      `Server mengembalikan response kosong. HTTP ${response.status}`
-    );
-  }
-
-
-  // ========================================
-  // PARSE JSON
-  // ========================================
-
-  let data;
-
-  try {
-
-    data =
-      JSON.parse(raw);
-
-  } catch (error) {
-
-    console.error(
-      "JSON PARSE ERROR:",
-      error
-    );
-
-    console.error(
-      "RAW RESPONSE:",
+    console.log(
+      "QuanticData response:",
       raw
     );
 
-    throw new Error(
-      "Server mengembalikan response bukan JSON."
-    );
-  }
+    // ========================================
+    // PARSE JSON
+    // ========================================
 
+    let data;
 
-  console.log(
-    "STEP 8 - JSON BERHASIL"
-  );
+    try {
+      data =
+        JSON.parse(raw);
+    } catch {
+      return res.status(502).json({
+        success: false,
+        error:
+          "QuanticData mengembalikan response bukan JSON.",
 
-  console.log(
-    data
-  );
+        status:
+          response.status,
 
+        response:
+          raw.substring(0, 1000)
+      });
+    }
 
-  // ========================================
-  // CEK HTTP
-  // ========================================
+    // ========================================
+    // CEK STATUS QUANTICDATA
+    // ========================================
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return res.status(502).json({
+        success: false,
+
+        error:
+          "QuanticData gagal mengambil data TikTok.",
+
+        status:
+          response.status,
+
+        details:
+          data?.message ||
+          data?.error ||
+          data
+      });
+    }
+
+    // ========================================
+    // CARI RESULTS
+    // ========================================
+
+    const results =
+      data?.payload?.results ||
+      data?.results ||
+      [];
+
+    if (
+      !Array.isArray(results) ||
+      results.length === 0
+    ) {
+      return res.status(404).json({
+        success: false,
+
+        error:
+          "Data video TikTok tidak ditemukan.",
+
+        url:
+          finalUrl,
+
+        response:
+          data
+      });
+    }
+
+    const video =
+      results[0];
+
+    // ========================================
+    // RESPONSE
+    // ========================================
+
+    return res.status(200).json({
+      success: true,
+
+      video_id:
+        video.video_id ??
+        null,
+
+      url:
+        video.url ||
+        finalUrl,
+
+      description:
+        video.description ||
+        "",
+
+      created_at:
+        video.created_at ||
+        null,
+
+      views:
+        video.views ?? 0,
+
+      likes:
+        video.likes ?? 0,
+
+      comments:
+        video.comments ?? 0,
+
+      shares:
+        video.shares ?? 0,
+
+      saves:
+        video.saves ?? 0,
+
+      fetched_at:
+        new Date().toISOString()
+    });
+
+  } catch (error) {
 
     console.error(
-      "HTTP ERROR:",
-      data
+      "Server error:",
+      error
     );
 
-    throw new Error(
-      data.error ||
-      data.message ||
-      `HTTP Error ${response.status}`
-    );
-  }
+    return res.status(500).json({
+      success: false,
 
+      error:
+        "Terjadi error pada server.",
 
-  // ========================================
-  // CEK SUCCESS
-  // ========================================
-
-  if (
-    data.success === false
-  ) {
-
-    throw new Error(
-      data.error ||
-      "API mengembalikan success=false."
-    );
-  }
-
-
-  console.log(
-    "STEP 9 - DATA BERHASIL"
-  );
-
-  console.log(
-    data
-  );
-
-
-  return data;
-}
-
-
-// ==========================================
-// TAMPILKAN DATA
-// ==========================================
-
-function displayResult(data) {
-
-  console.log(
-    "================================"
-  );
-
-  console.log(
-    "DISPLAY RESULT"
-  );
-
-  console.log(
-    data
-  );
-
-
-  if (videoIdElement) {
-
-    videoIdElement.textContent =
-      `Video ID: ${
-        data.video_id || "-"
-      }`;
-  }
-
-
-  if (openTikTok) {
-
-    openTikTok.href =
-      data.url || "#";
-  }
-
-
-  if (
-    descriptionElement &&
-    data.description
-  ) {
-
-    descriptionElement.textContent =
-      data.description;
-
-    descriptionElement.classList.remove(
-      "hidden"
-    );
-
-  } else if (descriptionElement) {
-
-    descriptionElement.classList.add(
-      "hidden"
-    );
-  }
-
-
-  if (viewsElement) {
-
-    viewsElement.textContent =
-      Number(
-        data.views || 0
-      ).toLocaleString(
-        "id-ID"
-      );
-  }
-
-
-  if (likesElement) {
-
-    likesElement.textContent =
-      Number(
-        data.likes || 0
-      ).toLocaleString(
-        "id-ID"
-      );
-  }
-
-
-  if (commentsElement) {
-
-    commentsElement.textContent =
-      Number(
-        data.comments || 0
-      ).toLocaleString(
-        "id-ID"
-      );
-  }
-
-
-  if (sharesElement) {
-
-    sharesElement.textContent =
-      Number(
-        data.shares || 0
-      ).toLocaleString(
-        "id-ID"
-      );
-  }
-
-
-  if (savesElement) {
-
-    savesElement.textContent =
-      Number(
-        data.saves || 0
-      ).toLocaleString(
-        "id-ID"
-      );
-  }
-
-
-  if (createdAtElement) {
-
-    createdAtElement.textContent =
-      data.created_at ||
-      "-";
-  }
-
-
-  if (fetchedAtElement) {
-
-    fetchedAtElement.textContent =
-      data.fetched_at ||
-      "-";
-  }
-
-
-  if (resultBox) {
-
-    resultBox.classList.remove(
-      "hidden"
-    );
+      details:
+        error.message
+    });
   }
 }
-
-
-// ==========================================
-// FORM SUBMIT
-// ==========================================
-
-if (searchForm) {
-
-  searchForm.addEventListener(
-    "submit",
-    async function (event) {
-
-      event.preventDefault();
-
-
-      console.log(
-        "================================"
-      );
-
-      console.log(
-        "CHECK BUTTON / FORM DITEKAN"
-      );
-
-      console.log(
-        "================================"
-      );
-
-
-      hideError();
-
-
-      if (resultBox) {
-
-        resultBox.classList.add(
-          "hidden"
-        );
-      }
-
-
-      const videoUrl =
-        videoInput
-          ? videoInput.value.trim()
-          : "";
-
-
-      console.log(
-        "URL USER:",
-        videoUrl
-      );
-
-
-      if (!videoUrl) {
-
-        showError(
-          "Masukkan link video TikTok."
-        );
-
-        return;
-      }
-
-
-      showLoading();
-
-
-      try {
-
-        const data =
-          await getTikTokStats(
-            videoUrl
-          );
-
-
-        displayResult(
-          data
-        );
-
-
-      } catch (error) {
-
-        console.error(
-          "================================"
-        );
-
-        console.error(
-          "REQUEST GAGAL"
-        );
-
-        console.error(
-          error
-        );
-
-        console.error(
-          "================================"
-        );
-
-
-        showError(
-          error.message ||
-          "Terjadi kesalahan."
-        );
-
-
-      } finally {
-
-        hideLoading();
-
-      }
-
-    }
-  );
-
-}
-
-
-// ==========================================
-// ENTER KEY
-// ==========================================
-
-if (videoInput) {
-
-  videoInput.addEventListener(
-    "keydown",
-    function (event) {
-
-      if (
-        event.key ===
-        "Enter"
-      ) {
-
-        event.preventDefault();
-
-        if (searchForm) {
-
-          searchForm.requestSubmit();
-
-        }
-
-      }
-
-    }
-  );
-
-}
-
-
-// ==========================================
-// SELESAI
-// ==========================================
-
-console.log(
-  "================================"
-);
-
-console.log(
-  "SCRIPT SIAP"
-);
-
-console.log(
-  "Form:",
-  !!searchForm
-);
-
-console.log(
-  "Input:",
-  !!videoInput
-);
-
-console.log(
-  "Button:",
-  !!checkButton
-);
-
-console.log(
-  "Result:",
-  !!resultBox
-);
-
-console.log(
-  "================================"
-);
