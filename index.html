@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TikTok Stats Finder</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <section class="hero">
+      <div class="badge">TikTok Analytics</div>
+      <h1>Check TikTok<br><span>Video Stats</span></h1>
+      <p>Masukkan link video TikTok untuk melihat statistiknya.</p>
+
+      <form id="searchForm" class="search-box">
+        <input id="videoUrl" type="url"
+          placeholder="https://www.tiktok.com/@username/video/..."
+          autocomplete="off" required>
+        <button id="checkButton" type="submit">Check</button>
+      </form>
+
+      <div id="error" class="error hidden"></div>
+    </section>
+
+    <section id="loading" class="loading hidden">
+      <div class="spinner"></div>
+      <span>Mengambil data video...</span>
+    </section>
+
+    <section id="result" class="result hidden">
+      <div class="result-top">
+        <div>
+          <h2>Video Statistics</h2>
+          <p id="videoId"></p>
+        </div>
+        <a id="openTikTok" class="open-btn" target="_blank" rel="noopener noreferrer">
+          Open TikTok
+        </a>
+      </div>
+
+      <div id="description" class="description hidden"></div>
+
+      <div class="stats">
+        <div class="card">
+          <div class="icon">◉</div>
+          <small>Views</small>
+          <strong id="views">0</strong>
+        </div>
+        <div class="card">
+          <div class="icon">♥</div>
+          <small>Likes</small>
+          <strong id="likes">0</strong>
+        </div>
+        <div class="card">
+          <div class="icon">●</div>
+          <small>Comments</small>
+          <strong id="comments">0</strong>
+        </div>
+        <div class="card">
+          <div class="icon">↗</div>
+          <small>Shares</small>
+          <strong id="shares">0</strong>
+        </div>
+        <div class="card">
+          <div class="icon">▱</div>
+          <small>Saves</small>
+          <strong id="saves">0</strong>
+        </div>
+      </div>
+
+      <div class="meta">
+        <span>Created: <b id="createdAt">-</b></span>
+        <span>Fetched: <b id="fetchedAt">-</b></span>
+      </div>
+    </section>
+
+    <footer>TikTok Stats Finder</footer>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
